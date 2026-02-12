@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npx quartz build",
+  "outputDirectory": "public",
+  "devCommand": "npx quartz build --serve",
+  "installCommand": "npm install"
+}
