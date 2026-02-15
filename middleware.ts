@@ -66,15 +66,15 @@ const LOGIN_HTML = `<!DOCTYPE html>
   <div class="login-box">
     <h1>🌱 Quartz Garden</h1>
     <p>Enter password to continue</p>
-    <form method="POST" action="/">
-      <input type="password" name="password" placeholder="Password" autofocus required>
+    <form method="GET" action="/">
+      <input type="password" name="pw" placeholder="Password" autofocus required>
       <button type="submit">Enter</button>
     </form>
   </div>
 </body>
 </html>`;
 
-export default function middleware(request: Request) {
+export default async function middleware(request: Request) {
   const password = process.env.QUARTZ_PASSWORD;
   const url = new URL(request.url);
   
@@ -88,26 +88,23 @@ export default function middleware(request: Request) {
     return fetch(request);
   }
 
-  // Handle POST with password
-  if (request.method === 'POST') {
-    return request.text().then(body => {
-      const params = new URLSearchParams(body);
-      const submittedPassword = params.get('password');
-      
-      if (submittedPassword === password) {
-        return fetch(request).then(res => {
-          const headers = new Headers(res.headers);
-          headers.set('Set-Cookie', `quartz-auth=${password}; Max-Age=604800; HttpOnly; Secure; SameSite=Strict; Path=/`);
-          headers.set('Location', url.pathname);
-          return new Response(null, { status: 302, headers });
-        });
-      }
-      
-      // Wrong password - show error
-      return new Response(LOGIN_HTML.replace('</form>', '</form><div class="error">Incorrect password</div>'), {
-        status: 401,
-        headers: { 'Content-Type': 'text/html' },
-      });
+  // Check for password in query string (GET form submission)
+  const submittedPassword = url.searchParams.get('pw');
+  if (submittedPassword === password) {
+    const res = await fetch(request);
+    const headers = new Headers(res.headers);
+    headers.set('Set-Cookie', `quartz-auth=${password}; Max-Age=604800; HttpOnly; Secure; SameSite=Strict; Path=/`);
+    // Remove the pw param from URL
+    url.searchParams.delete('pw');
+    headers.set('Location', url.toString());
+    return new Response(null, { status: 302, headers });
+  }
+  
+  if (submittedPassword && submittedPassword !== password) {
+    // Wrong password
+    return new Response(LOGIN_HTML.replace('</form>', '</form><div class="error">Incorrect password</div>'), {
+      status: 401,
+      headers: { 'Content-Type': 'text/html' },
     });
   }
 
