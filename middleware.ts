@@ -6,10 +6,11 @@ export const config = {
 
 export default function middleware(request: Request) {
   const password = process.env.QUARTZ_PASSWORD;
+  const authHeader = request.headers.get('authorization');
   
-  // Debug: show what we're checking
-  console.log('Password env:', password ? 'SET' : 'NOT SET');
-  console.log('Auth header:', request.headers.get('authorization') ? 'PRESENT' : 'NONE');
+  // Debug logging
+  console.log('Env password length:', password?.length || 0);
+  console.log('Auth header:', authHeader);
   
   if (!password) {
     return new Response('No password configured', { status: 500 });
@@ -22,20 +23,31 @@ export default function middleware(request: Request) {
   }
 
   // Check basic auth
-  const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Basic ')) {
     const base64 = authHeader.slice(6);
-    const decoded = atob(base64);
-    const pass = decoded.split(':')[1];
+    console.log('Base64:', base64);
     
-    console.log('Checking password:', pass === password);
-    
-    if (pass === password) {
-      return fetch(request).then(res => {
-        const headers = new Headers(res.headers);
-        headers.set('Set-Cookie', `quartz-auth=${password}; Max-Age=604800; HttpOnly; Secure; SameSite=Strict`);
-        return new Response(res.body, { status: res.status, headers });
-      });
+    try {
+      const decoded = atob(base64);
+      console.log('Decoded:', decoded);
+      
+      const parts = decoded.split(':');
+      const user = parts[0];
+      const pass = parts[1];
+      
+      console.log('User:', user);
+      console.log('Pass length:', pass?.length);
+      console.log('Match:', pass === password);
+      
+      if (pass === password) {
+        return fetch(request).then(res => {
+          const headers = new Headers(res.headers);
+          headers.set('Set-Cookie', `quartz-auth=${password}; Max-Age=604800; HttpOnly; Secure; SameSite=Strict`);
+          return new Response(res.body, { status: res.status, headers });
+        });
+      }
+    } catch (e) {
+      console.log('Decode error:', e);
     }
   }
 
