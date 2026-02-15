@@ -6,11 +6,12 @@ export const config = {
 };
 
 export default function middleware(request: Request) {
-  const password = process.env.QUARTZ_PASSWORD;
+  // Get password from env - try both ways for edge runtime
+  const password = process.env.QUARTZ_PASSWORD || (globalThis as any).QUARTZ_PASSWORD;
   
-  // If no password set, allow all access
+  // Debug: if no password, show error and allow access
   if (!password) {
-    return fetch(request);
+    return new Response('Password not configured', { status: 500 });
   }
 
   // Check for auth cookie
@@ -28,11 +29,7 @@ export default function middleware(request: Request) {
       const [, pass] = decoded.split(':');
       
       if (pass === password) {
-        // Fetch the original request
-        const response = fetch(request);
-        
-        // Add cookie to response
-        return response.then(res => {
+        return fetch(request).then(res => {
           const newHeaders = new Headers(res.headers);
           newHeaders.append('Set-Cookie', `quartz-auth=${password}; Max-Age=${60*60*24*7}; HttpOnly; Secure; SameSite=Strict`);
           return new Response(res.body, {
