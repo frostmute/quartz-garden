@@ -4,8 +4,12 @@ node_modules
 public
 prof
 tsconfig.tsbuildinfo
-.obsidian
+# Obsidian - keep config, ignore workspace state
+.obsidian/workspace.json
+.obsidian/workspaces.json
+.obsidian/cache
 .quartz-cache
 private/
 .replit
 replit.nix
+.vercel
