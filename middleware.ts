@@ -1,4 +1,5 @@
 // Password protection for Quartz Garden
+// Set QUARTZ_PASSWORD in Vercel environment variables
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.).*)'],
@@ -6,38 +7,25 @@ export const config = {
 
 export default function middleware(request: Request) {
   const password = process.env.QUARTZ_PASSWORD;
-  const authHeader = request.headers.get('authorization');
   
-  // Debug logging
-  console.log('Env password length:', password?.length || 0);
-  console.log('Auth header:', authHeader);
-  
+  // If no password set, allow all access
   if (!password) {
-    return new Response('No password configured', { status: 500 });
+    return fetch(request);
   }
 
-  // Check cookie
+  // Check for auth cookie
   const cookie = request.headers.get('cookie');
   if (cookie?.includes(`quartz-auth=${password}`)) {
     return fetch(request);
   }
 
-  // Check basic auth
+  // Check for basic auth header
+  const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Basic ')) {
-    const base64 = authHeader.slice(6);
-    console.log('Base64:', base64);
-    
     try {
+      const base64 = authHeader.slice(6);
       const decoded = atob(base64);
-      console.log('Decoded:', decoded);
-      
-      const parts = decoded.split(':');
-      const user = parts[0];
-      const pass = parts[1];
-      
-      console.log('User:', user);
-      console.log('Pass length:', pass?.length);
-      console.log('Match:', pass === password);
+      const pass = decoded.split(':')[1];
       
       if (pass === password) {
         return fetch(request).then(res => {
@@ -47,12 +35,15 @@ export default function middleware(request: Request) {
         });
       }
     } catch (e) {
-      console.log('Decode error:', e);
+      // Invalid auth, fall through to 401
     }
   }
 
-  return new Response('Auth required', {
+  // Return 401 with auth prompt
+  return new Response('Authentication required', {
     status: 401,
-    headers: { 'WWW-Authenticate': 'Basic realm="Garden"' },
+    headers: {
+      'WWW-Authenticate': 'Basic realm="Quartz Garden"',
+    },
   });
 }
